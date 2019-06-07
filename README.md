@@ -1,18 +1,35 @@
 # pedestrian-attribute-recognition-with-GCN
-图卷积识别行人特征
 
-prepare rap dataset first
+## Preparation
 
-python transform_rap2.py  转换数据格式
+<font face="Times New Roman" size=4>
+  
+**Prerequisite: Python 3.6 and torch 1.1.0 and torchnet and tqdm**
 
-python glove.py 产生简单的词向量
+**Download and prepare RAP(v2) dataset and annotation then put in dataset directory**
 
-python adj.py 生成邻接矩阵
+</font>
 
-python train.py 训练
+## Train the model
 
-python demo.py
+<font face="Times New Roman" size=4>
+
+   ```
+   python transform_rap2.py     (transform data)
+   python glove.py      (word2vec)
+   python adj.py      (Adjacency matrix)
+   python train.py
+   ``` 
+</font>
+
+## Demo
+
+<font face="Times New Roman" size=4>
+
+   ```
+   python demo.py
+   ``` 
+</font>
 
 ![image](https://github.com/2014gaokao/pedestrian-attribute-recognition-with-GCN/blob/master/image/demo_image.png)
-
 ![image](https://github.com/2014gaokao/pedestrian-attribute-recognition-with-GCN/blob/master/image/demo_image_result.png)
