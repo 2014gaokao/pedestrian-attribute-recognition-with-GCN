@@ -18,7 +18,7 @@
    python transform_rap2.py     (transform data)
    python glove.py      (word2vec)
    python adj.py      (Adjacency matrix)
-   python train.py
+   python train.py      (weight file will locate in checkpoint directory)
    ``` 
 </font>
 
@@ -33,3 +33,5 @@
 
 ![image](https://github.com/2014gaokao/pedestrian-attribute-recognition-with-GCN/blob/master/image/demo_image.png)
 ![image](https://github.com/2014gaokao/pedestrian-attribute-recognition-with-GCN/blob/master/image/demo_image_result.png)
+![image](https://github.com/2014gaokao/pedestrian-attribute-recognition-with-GCN/blob/master/image/demo_image_1.png)
+![image](https://github.com/2014gaokao/pedestrian-attribute-recognition-with-GCN/blob/master/image/demo_image_result_1.png)
