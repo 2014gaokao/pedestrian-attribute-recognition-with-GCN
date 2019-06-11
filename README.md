@@ -25,7 +25,8 @@
 ## Demo
 
 <font face="Times New Roman" size=4>
-
+  
+## checkpoint.pth.tar [Baidu Yun](https://pan.baidu.com/s/1N-b9ox7RQOq6rLez9Rn2Hg),password:n487 (training 100 epoch,initial lr 0.01)
    ```
    python demo.py
    ``` 
