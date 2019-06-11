@@ -9,6 +9,8 @@ import torchnet as tnt
 import torchvision.transforms as transforms
 import torch.nn as nn
 from util import *
+from evaluate import *
+import numpy as np
 
 tqdm.monitor_interval = 0
 class Engine(object):
@@ -41,14 +43,17 @@ class Engine(object):
         if self._state('epoch_step') is None:
             self.state['epoch_step'] = []
 
+        self.state['pt_result']=[]
+        self.state['gt_result']=[]
         # meters
         self.state['meter_loss'] = tnt.meter.AverageValueMeter()
+        self.state['loss_meter']=AverageMeter()
         # time measure
         self.state['batch_time'] = tnt.meter.AverageValueMeter()
         self.state['data_time'] = tnt.meter.AverageValueMeter()
         # display parameters
         if self._state('use_pb') is None:
-            self.state['use_pb'] = True
+            self.state['use_pb'] = False
         if self._state('print_freq') is None:
             self.state['print_freq'] = 0
 
@@ -61,8 +66,13 @@ class Engine(object):
         self.state['batch_time'].reset()
         self.state['data_time'].reset()
 
+        self.state['pt_result']=[]
+        self.state['gt_result']=[]
+        self.state['loss_meter'].reset()
+
     def on_end_epoch(self, training, model, criterion, data_loader, optimizer=None, display=True):
-        loss = self.state['meter_loss'].value()[0]
+        #loss = self.state['meter_loss'].value()[0]
+        loss=self.state['loss_meter'].value()
         if display:
             if training:
                 print('Epoch: [{0}]\t'
@@ -79,28 +89,7 @@ class Engine(object):
         # record lossself.state['loss_batch'] = self.state['loss'].data[0]
         self.state['loss_batch'] = self.state['loss'].data
         self.state['meter_loss'].add(self.state['loss_batch'].cpu())
-
-        if display and self.state['print_freq'] != 0 and self.state['iteration'] % self.state['print_freq'] == 0:
-            loss = self.state['meter_loss'].value()[0]
-            batch_time = self.state['batch_time'].value()[0]
-            data_time = self.state['data_time'].value()[0]
-            if training:
-                print('Epoch: [{0}][{1}/{2}]\t'
-                      'Time {batch_time_current:.3f} ({batch_time:.3f})\t'
-                      'Data {data_time_current:.3f} ({data_time:.3f})\t'
-                      'Loss {loss_current:.4f} ({loss:.4f})'.format(
-                    self.state['epoch'], self.state['iteration'], len(data_loader),
-                    batch_time_current=self.state['batch_time_current'],
-                    batch_time=batch_time, data_time_current=self.state['data_time_batch'],
-                    data_time=data_time, loss_current=self.state['loss_batch'], loss=loss))
-            else:
-                print('Test: [{0}/{1}]\t'
-                      'Time {batch_time_current:.3f} ({batch_time:.3f})\t'
-                      'Data {data_time_current:.3f} ({data_time:.3f})\t'
-                      'Loss {loss_current:.4f} ({loss:.4f})'.format(
-                    self.state['iteration'], len(data_loader), batch_time_current=self.state['batch_time_current'],
-                    batch_time=batch_time, data_time_current=self.state['data_time_batch'],
-                    data_time=data_time, loss_current=self.state['loss_batch'], loss=loss))
+        self.state['loss_meter'].update(self.state['loss'].data.cpu().numpy())
 
     def on_forward(self, training, model, criterion, data_loader, optimizer=None, display=True):
 
@@ -333,44 +322,59 @@ class MultiLabelMAPEngine(Engine):
         Engine.on_start_epoch(self, training, model, criterion, data_loader, optimizer)
         self.state['ap_meter'].reset()
 
+        self.state['pt_result']=[]
+        self.state['gt_result']=[]
+        self.state['loss_meter'].reset()
+
     def on_end_epoch(self, training, model, criterion, data_loader, optimizer=None, display=True):
-        map = 100 * self.state['ap_meter'].value().mean()
-        loss = self.state['meter_loss'].value()[0]
+        #map = 100 * self.state['ap_meter'].value().mean()
+        self.state['pt_result']=np.array(self.state['pt_result'])
+        self.state['gt_result']=np.array(self.state['gt_result'])
+        result=attribute_evaluate(self.state['pt_result'],self.state['gt_result'])
+        ma=np.mean(result['label_acc'])
+        acc=result['instance_acc']
+        prec=result['instance_precision']
+        rec=result['instance_recall']
+        f1=result['instance_F1']
+        #loss = self.state['meter_loss'].value()[0]
+        loss=self.state['loss_meter'].value()
         OP, OR, OF1, CP, CR, CF1 = self.state['ap_meter'].overall()
         OP_k, OR_k, OF1_k, CP_k, CR_k, CF1_k = self.state['ap_meter'].overall_topk(3)
         if display:
             if training:
+                with open('/data/hope/log.txt','a') as f:
+                      f.write('Epoch: [{0}]\t'
+                              'Loss {loss:.4f}\t'
+                              'mA {ma:.4f}'.format(self.state['epoch'],loss=loss,ma=ma))
+                      f.write('\n')
+                      f.write('Acc {acc:.4f}\t'
+                              'Prec {prec:.4f}\t'
+                              'Rec {rec:.4f}\t'
+                              'F1 {f1:.4f}'.format(acc=acc,prec=prec,rec=rec,f1=f1))
+                      f.write('\n\n')
                 print('Epoch: [{0}]\t'
                       'Loss {loss:.4f}\t'
-                      'mAP {map:.3f}'.format(self.state['epoch'], loss=loss, map=map))
-                print('OP: {OP:.4f}\t'
-                      'OR: {OR:.4f}\t'
-                      'OF1: {OF1:.4f}\t'
-                      'CP: {CP:.4f}\t'
-                      'CR: {CR:.4f}\t'
-                      'CF1: {CF1:.4f}'.format(OP=OP, OR=OR, OF1=OF1, CP=CP, CR=CR, CF1=CF1))
+                      'mA {ma:.4f}'.format(self.state['epoch'], loss=loss, ma=ma))
             else:
-                print('Test: \t Loss {loss:.4f}\t mAP {map:.3f}'.format(loss=loss, map=map))
-                print('OP: {OP:.4f}\t'
-                      'OR: {OR:.4f}\t'
-                      'OF1: {OF1:.4f}\t'
-                      'CP: {CP:.4f}\t'
-                      'CR: {CR:.4f}\t'
-                      'CF1: {CF1:.4f}'.format(OP=OP, OR=OR, OF1=OF1, CP=CP, CR=CR, CF1=CF1))
-                print('OP_3: {OP:.4f}\t'
-                      'OR_3: {OR:.4f}\t'
-                      'OF1_3: {OF1:.4f}\t'
-                      'CP_3: {CP:.4f}\t'
-                      'CR_3: {CR:.4f}\t'
-                      'CF1_3: {CF1:.4f}'.format(OP=OP_k, OR=OR_k, OF1=OF1_k, CP=CP_k, CR=CR_k, CF1=CF1_k))
+                with open('/data/hope/test.txt','w') as f:
+                      f.write('Test: \t Loss {loss:.4f}\t mA {ma:.4f}'.format(loss=loss,ma=ma))
+                      f.write('\n')
+                      f.write('Acc {acc:.4f}\t'
+                              'Prec {prec:.4f}\t'
+                              'Rec {rec:.4f}\t'
+                              'F1 {f1:.4f}'.format(acc=acc,prec=prec,rec=rec,f1=f1))
+                      f.write('\n\n')
+                print('Test: \t Loss {loss:.4f}\t mA {ma:.4f}'.format(loss=loss, ma=ma))
 
-        return map
+        return ma
 
     def on_start_batch(self, training, model, criterion, data_loader, optimizer=None, display=True):
 
         self.state['target_gt'] = self.state['target'].clone()
-        self.state['target'][self.state['target'] == 0] = 1
-        self.state['target'][self.state['target'] == -1] = 0
+        #self.state['target'][self.state['target'] == 0] = 1
+        #self.state['target'][self.state['target'] == -1] = 0
+        self.state['target'][self.state['target']==0]=0
+        self.state['target'][self.state['target']==1]=1
 
         input = self.state['input']
         self.state['input'] = input[0]
@@ -381,30 +385,13 @@ class MultiLabelMAPEngine(Engine):
         Engine.on_end_batch(self, training, model, criterion, data_loader, optimizer, display=False)
 
         # measure mAP
+        for i in range(self.state['output'].data.shape[0]):
+            feat=self.state['output'].data[i,:].cpu().numpy()
+            self.state['pt_result'].append(feat)
+        for i in range(self.state['target_gt'].shape[0]):
+            label=self.state['target_gt'][i,:].cpu().numpy()
+            self.state['gt_result'].append(label)
         self.state['ap_meter'].add(self.state['output'].data, self.state['target_gt'])
-
-        if display and self.state['print_freq'] != 0 and self.state['iteration'] % self.state['print_freq'] == 0:
-            loss = self.state['meter_loss'].value()[0]
-            batch_time = self.state['batch_time'].value()[0]
-            data_time = self.state['data_time'].value()[0]
-            if training:
-                print('Epoch: [{0}][{1}/{2}]\t'
-                      'Time {batch_time_current:.3f} ({batch_time:.3f})\t'
-                      'Data {data_time_current:.3f} ({data_time:.3f})\t'
-                      'Loss {loss_current:.4f} ({loss:.4f})'.format(
-                    self.state['epoch'], self.state['iteration'], len(data_loader),
-                    batch_time_current=self.state['batch_time_current'],
-                    batch_time=batch_time, data_time_current=self.state['data_time_batch'],
-                    data_time=data_time, loss_current=self.state['loss_batch'], loss=loss))
-            else:
-                print('Test: [{0}/{1}]\t'
-                      'Time {batch_time_current:.3f} ({batch_time:.3f})\t'
-                      'Data {data_time_current:.3f} ({data_time:.3f})\t'
-                      'Loss {loss_current:.4f} ({loss:.4f})'.format(
-                    self.state['iteration'], len(data_loader), batch_time_current=self.state['batch_time_current'],
-                    batch_time=batch_time, data_time_current=self.state['data_time_batch'],
-                    data_time=data_time, loss_current=self.state['loss_batch'], loss=loss))
-
 
 class GCNMultiLabelMAPEngine(MultiLabelMAPEngine):
     def on_forward(self, training, model, criterion, data_loader, optimizer=None, display=True):
@@ -430,8 +417,10 @@ class GCNMultiLabelMAPEngine(MultiLabelMAPEngine):
     def on_start_batch(self, training, model, criterion, data_loader, optimizer=None, display=True):
 
         self.state['target_gt'] = self.state['target'].clone()
-        self.state['target'][self.state['target'] == 0] = 1
-        self.state['target'][self.state['target'] == -1] = 0
+        #self.state['target'][self.state['target'] == 0] = 1
+        #self.state['target'][self.state['target'] == -1] = 0
+        self.state['target'][self.state['target']==1]==1
+        self.state['target'][self.state['target']==0]==0
 
         input = self.state['input']
         self.state['feature'] = input[0]
