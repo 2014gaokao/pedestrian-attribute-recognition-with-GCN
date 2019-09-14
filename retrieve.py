@@ -43,7 +43,7 @@ if __name__ =='__main__':
 
 
     model = gcn_resnet101(num_classes=60, t=0.9, adj_file='dataset/adj.pkl')
-    checkpoint = torch.load('checkpoint/model_best_0.7624.pth.tar', map_location='cpu')
+    checkpoint = torch.load('checkpoint/model_best.pth.tar', map_location='cpu')
     model.load_state_dict(checkpoint['state_dict'])
     model.eval()
 
