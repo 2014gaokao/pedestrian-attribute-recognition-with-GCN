@@ -5,7 +5,7 @@ import torch.backends.cudnn as cudnn
 import torch.nn.parallel
 import torch.optim
 import torch.utils.data
-import torchnet as tnt
+#import torchnet as tnt
 import torchvision.transforms as transforms
 import torch.nn as nn
 from util import *
@@ -46,11 +46,7 @@ class Engine(object):
         self.state['pt_result']=[]
         self.state['gt_result']=[]
         # meters
-        self.state['meter_loss'] = tnt.meter.AverageValueMeter()
         self.state['loss_meter']=AverageMeter()
-        # time measure
-        self.state['batch_time'] = tnt.meter.AverageValueMeter()
-        self.state['data_time'] = tnt.meter.AverageValueMeter()
         # display parameters
         if self._state('use_pb') is None:
             self.state['use_pb'] = False
@@ -62,16 +58,11 @@ class Engine(object):
             return self.state[name]
 
     def on_start_epoch(self, training, model, criterion, data_loader, optimizer=None, display=True):
-        self.state['meter_loss'].reset()
-        self.state['batch_time'].reset()
-        self.state['data_time'].reset()
-
         self.state['pt_result']=[]
         self.state['gt_result']=[]
         self.state['loss_meter'].reset()
 
     def on_end_epoch(self, training, model, criterion, data_loader, optimizer=None, display=True):
-        #loss = self.state['meter_loss'].value()[0]
         loss=self.state['loss_meter'].value()
         if display:
             if training:
@@ -86,9 +77,7 @@ class Engine(object):
 
     def on_end_batch(self, training, model, criterion, data_loader, optimizer=None, display=True):
 
-        # record lossself.state['loss_batch'] = self.state['loss'].data[0]
-        self.state['loss_batch'] = self.state['loss'].data
-        self.state['meter_loss'].add(self.state['loss_batch'].cpu())
+        # record loss
         self.state['loss_meter'].update(self.state['loss'].data.cpu().numpy())
 
     def on_forward(self, training, model, criterion, data_loader, optimizer=None, display=True):
@@ -204,7 +193,7 @@ class Engine(object):
                 'best_score': self.state['best_score'],
             }, is_best)
 
-            print(' *** best={best:.3f}'.format(best=self.state['best_score']))
+            print(' *** best={best:.4f}'.format(best=self.state['best_score']))
         return self.state['best_score']
 
     def train(self, data_loader, model, criterion, optimizer, epoch):
@@ -217,12 +206,9 @@ class Engine(object):
         if self.state['use_pb']:
             data_loader = tqdm(data_loader, desc='Training')
 
-        end = time.time()
         for i, (input, target) in enumerate(data_loader):
             # measure data loading time
             self.state['iteration'] = i
-            self.state['data_time_batch'] = time.time() - end
-            self.state['data_time'].add(self.state['data_time_batch'])
 
             self.state['input'] = input
             self.state['target'] = target
@@ -234,10 +220,6 @@ class Engine(object):
 
             self.on_forward(True, model, criterion, data_loader, optimizer)
 
-            # measure elapsed time
-            self.state['batch_time_current'] = time.time() - end
-            self.state['batch_time'].add(self.state['batch_time_current'])
-            end = time.time()
             # measure accuracy
             self.on_end_batch(True, model, criterion, data_loader, optimizer)
 
@@ -253,12 +235,9 @@ class Engine(object):
         if self.state['use_pb']:
             data_loader = tqdm(data_loader, desc='Test')
 
-        end = time.time()
         for i, (input, target) in enumerate(data_loader):
             # measure data loading time
             self.state['iteration'] = i
-            self.state['data_time_batch'] = time.time() - end
-            self.state['data_time'].add(self.state['data_time_batch'])
 
             self.state['input'] = input
             self.state['target'] = target
@@ -270,10 +249,6 @@ class Engine(object):
 
             self.on_forward(False, model, criterion, data_loader)
 
-            # measure elapsed time
-            self.state['batch_time_current'] = time.time() - end
-            self.state['batch_time'].add(self.state['batch_time_current'])
-            end = time.time()
             # measure accuracy
             self.on_end_batch(False, model, criterion, data_loader)
 
@@ -316,18 +291,15 @@ class MultiLabelMAPEngine(Engine):
         Engine.__init__(self, state)
         if self._state('difficult_examples') is None:
             self.state['difficult_examples'] = False
-        self.state['ap_meter'] = AveragePrecisionMeter(self.state['difficult_examples'])
 
     def on_start_epoch(self, training, model, criterion, data_loader, optimizer=None, display=True):
         Engine.on_start_epoch(self, training, model, criterion, data_loader, optimizer)
-        self.state['ap_meter'].reset()
 
         self.state['pt_result']=[]
         self.state['gt_result']=[]
         self.state['loss_meter'].reset()
 
     def on_end_epoch(self, training, model, criterion, data_loader, optimizer=None, display=True):
-        #map = 100 * self.state['ap_meter'].value().mean()
         self.state['pt_result']=np.array(self.state['pt_result'])
         self.state['gt_result']=np.array(self.state['gt_result'])
         result=attribute_evaluate(self.state['pt_result'],self.state['gt_result'])
@@ -336,43 +308,38 @@ class MultiLabelMAPEngine(Engine):
         prec=result['instance_precision']
         rec=result['instance_recall']
         f1=result['instance_F1']
-        #loss = self.state['meter_loss'].value()[0]
         loss=self.state['loss_meter'].value()
-        OP, OR, OF1, CP, CR, CF1 = self.state['ap_meter'].overall()
-        OP_k, OR_k, OF1_k, CP_k, CR_k, CF1_k = self.state['ap_meter'].overall_topk(3)
         if display:
             if training:
-                with open('/data/hope/log.txt','a') as f:
+                with open('/data/zcc/gcn/log.txt','a') as f:
                       f.write('Epoch: [{0}]\t'
                               'Loss {loss:.4f}\t'
                               'mA {ma:.4f}'.format(self.state['epoch'],loss=loss,ma=ma))
-                      f.write('\n')
+                      f.write('\r\n')
                       f.write('Acc {acc:.4f}\t'
                               'Prec {prec:.4f}\t'
                               'Rec {rec:.4f}\t'
                               'F1 {f1:.4f}'.format(acc=acc,prec=prec,rec=rec,f1=f1))
-                      f.write('\n\n')
+                      f.write('\r\n\r\n')
                 print('Epoch: [{0}]\t'
                       'Loss {loss:.4f}\t'
                       'mA {ma:.4f}'.format(self.state['epoch'], loss=loss, ma=ma))
             else:
-                with open('/data/hope/test.txt','w') as f:
-                      f.write('Test: \t Loss {loss:.4f}\t mA {ma:.4f}'.format(loss=loss,ma=ma))
-                      f.write('\n')
+                with open('/data/zcc/gcn/test.txt','a') as f:
+                      f.write('Test: \t Epoch: [{0}]\t Loss {loss:.4f}\t mA {ma:.4f}'.format(self.state['epoch'],loss=loss,ma=ma))
+                      f.write('\r\n')
                       f.write('Acc {acc:.4f}\t'
                               'Prec {prec:.4f}\t'
                               'Rec {rec:.4f}\t'
                               'F1 {f1:.4f}'.format(acc=acc,prec=prec,rec=rec,f1=f1))
-                      f.write('\n\n')
-                print('Test: \t Loss {loss:.4f}\t mA {ma:.4f}'.format(loss=loss, ma=ma))
+                      f.write('\r\n\r\n')
+                print('Test: \t Epoch: [{0}]\t Loss {loss:.4f}\t mA {ma:.4f}'.format(self.state['epoch'],loss=loss, ma=ma))
 
         return ma
 
     def on_start_batch(self, training, model, criterion, data_loader, optimizer=None, display=True):
 
         self.state['target_gt'] = self.state['target'].clone()
-        #self.state['target'][self.state['target'] == 0] = 1
-        #self.state['target'][self.state['target'] == -1] = 0
         self.state['target'][self.state['target']==0]=0
         self.state['target'][self.state['target']==1]=1
 
@@ -391,7 +358,6 @@ class MultiLabelMAPEngine(Engine):
         for i in range(self.state['target_gt'].shape[0]):
             label=self.state['target_gt'][i,:].cpu().numpy()
             self.state['gt_result'].append(label)
-        self.state['ap_meter'].add(self.state['output'].data, self.state['target_gt'])
 
 class GCNMultiLabelMAPEngine(MultiLabelMAPEngine):
     def on_forward(self, training, model, criterion, data_loader, optimizer=None, display=True):
@@ -417,10 +383,8 @@ class GCNMultiLabelMAPEngine(MultiLabelMAPEngine):
     def on_start_batch(self, training, model, criterion, data_loader, optimizer=None, display=True):
 
         self.state['target_gt'] = self.state['target'].clone()
-        #self.state['target'][self.state['target'] == 0] = 1
-        #self.state['target'][self.state['target'] == -1] = 0
-        self.state['target'][self.state['target']==1]==1
-        self.state['target'][self.state['target']==0]==0
+        self.state['target'][self.state['target']==1]=1
+        self.state['target'][self.state['target']==0]=0
 
         input = self.state['input']
         self.state['feature'] = input[0]

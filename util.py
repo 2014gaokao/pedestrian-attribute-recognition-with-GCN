@@ -295,13 +295,13 @@ class AveragePrecisionMeter(object):
         scores = self.scores.cpu().numpy().copy()
         targets = self.targets.cpu().numpy().copy()
         targets[targets != 1] = 0
-        sio.savemat('../coco_gcn.mat', {'scores': scores, 'targets': targets})
+        sio.savemat('coco_gcn.mat', {'scores': scores, 'targets': targets})
 
     def save_to_np(self):
         scores = self.scores.cpu().numpy().copy()
         targets = self.targets.cpu().numpy().copy()
         targets[targets != 1] = 0
-        np.save('../resnet_voc.npy', [scores, targets])
+        np.save('resnet_voc.npy', [scores, targets])
 
 def gen_A(num_classes, t, adj_file):
     import pickle
@@ -312,7 +312,7 @@ def gen_A(num_classes, t, adj_file):
     _adj = _adj / _nums
     _adj[_adj < t] = 0
     _adj[_adj >= t] = 1
-    _adj = _adj * 0.25 / (_adj.sum(0) + 1e-6)
+    #_adj = _adj * 0.9 / (_adj.sum(0) + 1e-6)
     _adj = _adj + np.identity(num_classes, np.int)
     return _adj
 
