@@ -6,7 +6,7 @@
   
 **Prerequisite: Python 3.6 and torch 1.1.0 and tqdm**
 
-**Download and prepare RAP(v2) dataset and annotation then put in dataset directory**
+**Download RAP(v2) dataset and annotation then put in dataset directory**
 
 </font>
 
@@ -25,11 +25,20 @@
 ## Demo
 
 <font face="Times New Roman" size=4>
-  
-## checkpoint.pth.tar [Baidu Yun](https://pan.baidu.com/s/1m4Na3AFtZrl5i1jsEJD8qQ),password:5z1j
+
    ```
    python demo.py
    ``` 
+</font>
+
+## checkpoint.pth.tar
+
+<font face="Times New Roman" size=2>
+  
+  [Baidu Yun](https://pan.baidu.com/s/1m4Na3AFtZrl5i1jsEJD8qQ)
+
+  password:5z1j
+
 </font>
 
 ## Methodology
