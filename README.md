@@ -32,7 +32,5 @@
    ``` 
 </font>
 
-![image](https://github.com/2014gaokao/pedestrian-attribute-recognition-with-GCN/blob/master/image/demo_image_result.png)
-
 ## Methodology
 ![image](https://github.com/2014gaokao/pedestrian-attribute-recognition-with-GCN/blob/master/image/%E7%BB%98%E5%9B%BE1.jpg)
