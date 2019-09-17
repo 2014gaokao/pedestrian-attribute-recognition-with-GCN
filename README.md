@@ -28,3 +28,14 @@
 
 ## Methodology
 ![image](https://github.com/2014gaokao/pedestrian-attribute-recognition-with-GCN/blob/master/image/%E7%BB%98%E5%9B%BE1.jpg)
+
+## Superiority
+
+| method | mA | accuracy | precision | recall | F1 |
+|:-----:|---|---|---|---|---|
+|ACN|69.66|62.61|80.12|72.26|75.98|
+|DeepMar|73.79|	62.02|	74.92|	76.21	|75.56|
+|HP-Net|76.12	|65.39	|77.33	|78.79	|78.05|
+|JRL|77.81|	-|	78.11|	78.98|	78.58|
+|VeSPa|77.70	|67.35	|79.51|	79.67	|79.59|
+|Ours|75.70	|**68.73**	|**81.74**	|79.31	|**80.51**|
